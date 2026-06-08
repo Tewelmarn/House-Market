@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  password      String?
+  role          UserRole  @default(BUYER)
+  image         String?
+  phone         String?
+  province      String?
+  isActive      Boolean   @default(true)
+  isBanned      Boolean   @default(false)
+  banReason     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  shops          Shop[]
+  shopMembers    ShopMember[]
+  buyerChats     Chat[]         @relation("BuyerChats")
+  sellerChats    Chat[]         @relation("SellerChats")
+  messages       Message[]
+  ratings        Rating[]
+  cart           Cart?
+  affiliateLinks AffiliateLink[]
+  notifications  Notification[]
+  reports        Report[]
+  accounts       Account[]
+  sessions       Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Shop {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  description String?
+  province    String?
+  address     String?
+  whatsapp    String?
+  category    String?
+  logo        String?
+  banner      String?
+  isActive    Boolean     @default(true)
+  points      Int         @default(0)
+  level       SellerLevel @default(BRONZE)
+  ownerId     String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  owner          User            @relation(fields: [ownerId], references: [id])
+  members        ShopMember[]
+  products       Product[]
+  chats          Chat[]
+  ratings        Rating[]
+  affiliateLinks AffiliateLink[]
+}
+
+model ShopMember {
+  id        String         @id @default(cuid())
+  shopId    String
+  userId    String
+  role      ShopMemberRole @default(MANAGER)
+  createdAt DateTime       @default(now())
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, userId])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  stock       Int      @default(0)
+  category    String?
+  province    String?
+  shipping    Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  shopId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shop      Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  media     ProductMedia[]
+  cartItems CartItem[]
+  ratings   Rating[]
+}
+
+model ProductMedia {
+  id        String   @id @default(cuid())
+  url       String
+  type      String   @default("image")
+  productId String
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Chat {
+  id        String   @id @default(cuid())
+  buyerId   String
+  sellerId  String
+  shopId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  buyer    User      @relation("BuyerChats", fields: [buyerId], references: [id])
+  seller   User      @relation("SellerChats", fields: [sellerId], references: [id])
+  shop     Shop      @relation(fields: [shopId], references: [id])
+  messages Message[]
+
+  @@unique([buyerId, sellerId, shopId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  chatId    String
+  senderId  String
+  content   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id])
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  score     Int
+  comment   String?
+  userId    String
+  shopId    String?
+  productId String?
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id])
+  shop    Shop?    @relation(fields: [shopId], references: [id])
+  product Product? @relation(fields: [productId], references: [id])
+}
+
+model AffiliateLink {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  userId    String
+  shopId    String
+  clicks    Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  shop Shop @relation(fields: [shopId], references: [id])
+}
+
+model FeatureFlag {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  enabled   Boolean  @default(true)
+  label     String?
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  reason     String
+  targetType String
+  targetId   String
+  userId     String
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+enum UserRole {
+  BUYER
+  SELLER
+  ADMIN
+  ADMIN_SUPPORT
+}
+
+enum ShopMemberRole {
+  SUPER_SELLER
+  MANAGER
+}
+
+enum SellerLevel {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+// Note: add this field to the Product model if not already present:
+// discountTiers  Json?   @default("[]")
+
